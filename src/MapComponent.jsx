@@ -19,7 +19,9 @@ const basemaps = {
   ArcGISHybrid: 'HYBRID', // handled separately
   ArcGISSatellite: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
   ArcGISLabels: 'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+  MapboxTraffic: `https://api.mapbox.com/styles/v1/mapbox/traffic-day-v2/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoidGFsaXNhY29ubmVjdCIsImEiOiJjbG00ejlycDgwMG0wM2tsNnQzNnl4ZzZ1In0.e0T3LCiOSEmVKw40gPBrkA`,
 };
+
 
 const RouteLayer = ({ onAddStats, onAddClosure, activeBasemap, start, end, mapRef }) => {
   const map = useMap();
@@ -318,13 +320,19 @@ export default function MapComponent() {
         >
           {/* Hybrid layer rendering logic */}
           {basemap === 'ArcGISHybrid' ? (
-            <>
-              <TileLayer url={basemaps.ArcGISSatellite} />
-              <TileLayer url={basemaps.ArcGISLabels} />
-            </>
-          ) : (
-            <TileLayer url={basemaps[basemap]} />
-          )}
+  <>
+    <TileLayer url={basemaps.ArcGISSatellite} />
+    <TileLayer url={basemaps.ArcGISLabels} />
+  </>
+) : (
+  <TileLayer
+    url={basemaps[basemap]}
+    tileSize={512}
+    zoomOffset={-1}
+    attribution='© Mapbox, © OpenStreetMap'
+  />
+)}
+
 
           {startCoords && endCoords && (
             <RouteLayer
