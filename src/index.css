@@ -34,6 +34,10 @@ h1 {
   font-size: 3.2em;
   line-height: 1.1;
 }
+/* Ensure Google Autocomplete suggestions appear on top */
+.pac-container {
+  z-index: 99999 !important;
+}
 
 button {
   border-radius: 8px;

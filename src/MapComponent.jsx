@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Drawer, List, ListItem, ListItemText,
   FormControl, InputLabel, Select, MenuItem, Typography,
-  Autocomplete, TextField, Button
+  TextField, Button
 } from '@mui/material';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -16,13 +16,47 @@ const basemaps = {
   OpenStreetMap: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
   CartoLight: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
   CartoDark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-  ArcGISHybrid: 'HYBRID', // handled separately
+  ArcGISHybrid: 'HYBRID',
   ArcGISSatellite: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
   ArcGISLabels: 'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
   MapboxTraffic: `https://api.mapbox.com/styles/v1/mapbox/traffic-day-v2/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoidGFsaXNhY29ubmVjdCIsImEiOiJjbG00ejlycDgwMG0wM2tsNnQzNnl4ZzZ1In0.e0T3LCiOSEmVKw40gPBrkA`,
 };
 
+// ---------------- GOOGLE AUTOCOMPLETE COMPONENT ----------------
+const GoogleAutocompleteInput = ({ label, onPlaceSelected }) => {
+  const inputRef = useRef(null);
+  const autocompleteRef = useRef(null);
 
+  useEffect(() => {
+    if (!window.google || !window.google.maps) return;
+    autocompleteRef.current = new window.google.maps.places.Autocomplete(inputRef.current, {
+      types: ['geocode'],
+    });
+
+    autocompleteRef.current.addListener('place_changed', () => {
+      const place = autocompleteRef.current.getPlace();
+      if (!place.geometry) return;
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+      onPlaceSelected([lng, lat], place);
+    });
+  }, []);
+
+  return (
+    <div style={{ position: 'relative', zIndex: 99999 }}>
+    <TextField
+      inputRef={inputRef}
+      label={label}
+      variant="outlined"
+      size="small"
+      fullWidth
+      sx={{ mb: 2, input: { color: '#fff' }, label: { color: '#fff' } }}  
+
+    />  </div>
+  );
+};
+
+// ----------------- ROUTE LAYER LOGIC -------------------
 const RouteLayer = ({ onAddStats, onAddClosure, activeBasemap, start, end, mapRef }) => {
   const map = useMap();
   const clickBuffer = useRef([]);
@@ -61,7 +95,6 @@ const RouteLayer = ({ onAddStats, onAddClosure, activeBasemap, start, end, mapRe
 
       const geo = res.data;
       const seg = geo.features[0].properties.segments[0];
-
       const coords = geo.features[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
 
       const animatedLine = L.polyline([], { color, weight: 5 }).addTo(map);
@@ -98,17 +131,10 @@ const RouteLayer = ({ onAddStats, onAddClosure, activeBasemap, start, end, mapRe
 
       if (clickBuffer.current.length === 2) {
         const [p1, p2] = clickBuffer.current;
-
-        const red = L.polyline([[p1[1], p1[0]], [p2[1], p2[0]]], {
-          color: 'red',
-          weight: 5,
-        }).addTo(map);
-
-        const toLatLng = ([lng, lat]) => L.latLng(lat, lng);
-        const dist = map.distance(toLatLng(p1), toLatLng(p2)) / 1000;
+        const red = L.polyline([[p1[1], p1[0]], [p2[1], p2[0]]], { color: 'red', weight: 5 }).addTo(map);
+        const dist = map.distance(L.latLng(p1[1], p1[0]), L.latLng(p2[1], p2[0])) / 1000;
 
         onAddClosure({ layer: red, coords: [p1, p2], distance: dist.toFixed(2) });
-
         avoidPolygons.current.push(bufferLineToPolygon(p1, p2).coordinates);
 
         const color = colorPalette[(++colorIndex.current) % colorPalette.length];
@@ -146,31 +172,14 @@ const bufferLineToPolygon = (p1, p2, buffer = BUFFER) => {
   };
 };
 
+// ------------------ MAIN MAP COMPONENT ------------------
 export default function MapComponent() {
   const [routeStats, setRouteStats] = useState([]);
   const [closures, setClosures] = useState([]);
   const [basemap, setBasemap] = useState('OpenStreetMap');
-
-  const [startInput, setStartInput] = useState('');
-  const [endInput, setEndInput] = useState('');
   const [startCoords, setStartCoords] = useState(null);
   const [endCoords, setEndCoords] = useState(null);
-  const [startOptions, setStartOptions] = useState([]);
-  const [endOptions, setEndOptions] = useState([]);
-
   const mapRef = useRef(null);
-
-  const fetchSuggestions = async (text, setOptions) => {
-    if (!text) return;
-    try {
-      const res = await axios.get('https://nominatim.openstreetmap.org/search', {
-        params: { q: text, format: 'json', addressdetails: 1, limit: 5 },
-      });
-      setOptions(res.data);
-    } catch (e) {
-      console.error('Nominatim error:', e);
-    }
-  };
 
   const handleAddStats = (route) => {
     setRouteStats((prev) => [...prev, route]);
@@ -181,9 +190,7 @@ export default function MapComponent() {
       const updated = [...prev];
       const route = updated[index];
       if (route.layer) {
-        route.visible
-          ? mapRef.current.removeLayer(route.layer)
-          : route.layer.addTo(mapRef.current);
+        route.visible ? mapRef.current.removeLayer(route.layer) : route.layer.addTo(mapRef.current);
       }
       updated[index] = { ...route, visible: !route.visible };
       return updated;
@@ -210,13 +217,6 @@ export default function MapComponent() {
     });
   };
 
-  const handleSelect = (option, type) => {
-    if (!option) return;
-    const coords = [parseFloat(option.lon), parseFloat(option.lat)];
-    if (type === 'start') setStartCoords(coords);
-    else setEndCoords(coords);
-  };
-
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw' }}>
       <Drawer
@@ -233,43 +233,14 @@ export default function MapComponent() {
       >
         <Typography variant="h6" gutterBottom>Route Info</Typography>
 
-        <Autocomplete
-          freeSolo
-          options={startOptions}
-          getOptionLabel={(opt) => opt.display_name || ''}
-          onInputChange={(_, value) => {
-            setStartInput(value);
-            fetchSuggestions(value, setStartOptions);
-          }}
-          onChange={(_, value) => handleSelect(value, 'start')}
-          renderInput={(params) => (
-            <TextField {...params} label="Start Location" variant="outlined" size="small" sx={{ mb: 2 }}
-              InputLabelProps={{ style: { color: '#fff' } }}
-              InputProps={{ ...params.InputProps, style: { color: '#fff' } }} />
-          )}
-        />
-
-        <Autocomplete
-          freeSolo
-          options={endOptions}
-          getOptionLabel={(opt) => opt.display_name || ''}
-          onInputChange={(_, value) => {
-            setEndInput(value);
-            fetchSuggestions(value, setEndOptions);
-          }}
-          onChange={(_, value) => handleSelect(value, 'end')}
-          renderInput={(params) => (
-            <TextField {...params} label="End Location" variant="outlined" size="small" sx={{ mb: 2 }}
-              InputLabelProps={{ style: { color: '#fff' } }}
-              InputProps={{ ...params.InputProps, style: { color: '#fff' } }} />
-          )}
-        />
+        <GoogleAutocompleteInput label="Start Location" onPlaceSelected={setStartCoords} />
+        <GoogleAutocompleteInput label="End Location" onPlaceSelected={setEndCoords} />
 
         <FormControl fullWidth size="small" sx={{ mb: 2 }}>
           <InputLabel sx={{ color: '#fff' }}>Basemap</InputLabel>
           <Select value={basemap} label="Basemap"
             onChange={(e) => setBasemap(e.target.value)}
-            sx={{ color: '#fff', borderColor: '#fff' }}>
+            sx={{ color: '#fff' }}>
             {Object.keys(basemaps).map((key) => (
               <MenuItem key={key} value={key}>{key}</MenuItem>
             ))}
@@ -318,21 +289,19 @@ export default function MapComponent() {
           zoomControl={false}
           attributionControl={false}
         >
-          {/* Hybrid layer rendering logic */}
           {basemap === 'ArcGISHybrid' ? (
-  <>
-    <TileLayer url={basemaps.ArcGISSatellite} />
-    <TileLayer url={basemaps.ArcGISLabels} />
-  </>
-) : (
-  <TileLayer
-    url={basemaps[basemap]}
-    tileSize={512}
-    zoomOffset={-1}
-    attribution='© Mapbox, © OpenStreetMap'
-  />
-)}
-
+            <>
+              <TileLayer url={basemaps.ArcGISSatellite} />
+              <TileLayer url={basemaps.ArcGISLabels} />
+            </>
+          ) : (
+            <TileLayer
+              url={basemaps[basemap]}
+              tileSize={512}
+              zoomOffset={-1}
+              attribution="© Mapbox, © OpenStreetMap"
+            />
+          )}
 
           {startCoords && endCoords && (
             <RouteLayer
