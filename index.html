@@ -5,26 +5,14 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Routing</title>
-
-    <!-- ✅ Style to fix z-index of Google Autocomplete dropdown -->
-    <style>
-      .pac-container {
-        z-index: 99999 !important;
-      }
-    </style>
   </head>
   <body>
     <div id="root"></div>
-
-    <!-- ✅ Load main React app -->
     <script type="module" src="/src/main.jsx"></script>
-
-    <!-- ✅ Inject API key from .env using Vite syntax -->
     <script
-      type="text/javascript"
-      async
-      defer
-      src="https://maps.googleapis.com/maps/api/js?key=%VITE_GOOGLE_MAPS_API_KEY%&libraries=places"
-    ></script>
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDwf94FdCPhJCDPgUVOOSJ8UnOSpO3r1B4&libraries=places"
+    async
+    defer
+  ></script>
   </body>
 </html>

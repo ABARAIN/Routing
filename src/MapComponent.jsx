@@ -9,8 +9,7 @@ import L from 'leaflet';
 import axios from 'axios';
 import 'leaflet/dist/leaflet.css';
 
-const ORS_API_KEY = import.meta.env.VITE_ORS_API_KEY;
-
+const ORS_API_KEY = '5b3ce3597851110001cf6248872721bb5e674a1aa9d6e7e5269d41ce';
 const BUFFER = 0.0007;
 
 const basemaps = {
@@ -20,7 +19,7 @@ const basemaps = {
   ArcGISHybrid: 'HYBRID',
   ArcGISSatellite: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
   ArcGISLabels: 'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-  MapboxTraffic: `https://api.mapbox.com/styles/v1/mapbox/traffic-day-v2/tiles/{z}/{x}/{y}?access_token=${import.meta.env.VITE_MAPBOX_ACCESS_TOKEN}`,
+  MapboxTraffic: `https://api.mapbox.com/styles/v1/mapbox/traffic-day-v2/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoidGFsaXNhY29ubmVjdCIsImEiOiJjbG00ejlycDgwMG0wM2tsNnQzNnl4ZzZ1In0.e0T3LCiOSEmVKw40gPBrkA`,
 };
 
 // ---------------- GOOGLE AUTOCOMPLETE COMPONENT ----------------
